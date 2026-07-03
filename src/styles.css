@@ -1,4 +1,8 @@
 body {
-    font-family: lucida grande;
-  }
-  
+  font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: normal;
+}
