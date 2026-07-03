@@ -2,6 +2,7 @@ body {
   font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;
   background-color: rgb(51, 51, 51);
   color: #ffffff;
+  text-align: center;
 }
 
 h1, h2, h3, h4, h5, h6 {
