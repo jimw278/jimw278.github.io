@@ -74,6 +74,25 @@
   }
 
   /* --- Battle screen --- */
+  .battle-actions {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .battle-actions button {
+    padding: 6px 18px;
+    font-size: 0.85rem;
+  }
+
+  .battle-actions button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .battle-actions button:disabled:hover {
+    border-color: #999;
+    background: transparent;
+  }
+
   .versus-row {
     display: flex;
     align-items: stretch;
@@ -192,6 +211,10 @@
       <span id="progress-pct">0% sorted</span>
     </div>
 
+    <div class="battle-actions">
+      <button id="back-btn" disabled>Back</button>
+    </div>
+
     <div class="versus-row">
       <div class="song-card" id="card-left" tabindex="0"></div>
       <div class="vs-label">vs</div>
@@ -302,10 +325,18 @@
   const cardLeft = document.getElementById("card-left");
   const cardRight = document.getElementById("card-right");
   const progressPctEl = document.getElementById("progress-pct");
+  const backBtn = document.getElementById("back-btn");
 
-  let comparisonsDone = 0;
   let totalEstimate = 1;
   let resolveCompare = null;
+
+  // Fixed shuffle order for the current run, and the list of choices made so
+  // far. "Back" pops the last choice and restarts the sort against the same
+  // shuffle order, replaying recorded choices (instant, no UI) until it
+  // reaches the undone comparison again.
+  let shuffledSongs = [];
+  let history = [];
+  let callIndex = 0;
 
   function renderCard(el, song) {
     el.innerHTML = "";
@@ -316,17 +347,27 @@
   }
 
   function updateProgress() {
-    const pct = Math.min(99, Math.round((comparisonsDone / totalEstimate) * 100));
+    const pct = Math.min(99, Math.round((history.length / totalEstimate) * 100));
     progressPctEl.textContent = pct + "% sorted";
   }
 
+  function updateBackButton() {
+    backBtn.disabled = history.length === 0;
+  }
+
   function compare(a, b) {
+    const idx = callIndex++;
+    if (idx < history.length) {
+      return Promise.resolve(history[idx].result);
+    }
     renderCard(cardLeft, a);
     renderCard(cardRight, b);
     updateProgress();
+    updateBackButton();
     return new Promise((resolve) => {
       resolveCompare = (result) => {
-        comparisonsDone++;
+        history.push({ a, b, result });
+        updateProgress();
         resolve(result);
       };
     });
@@ -336,6 +377,13 @@
   cardRight.addEventListener("click", () => resolveCompare && resolveCompare(1));
   cardLeft.addEventListener("keydown", (e) => { if (e.key === "Enter") resolveCompare && resolveCompare(-1); });
   cardRight.addEventListener("keydown", (e) => { if (e.key === "Enter") resolveCompare && resolveCompare(1); });
+
+  backBtn.addEventListener("click", () => {
+    if (history.length === 0) return;
+    history.pop();
+    resolveCompare = null;
+    startRun();
+  });
 
   async function mergeSort(arr) {
     if (arr.length <= 1) return arr;
@@ -361,12 +409,19 @@
     return result;
   }
 
-  async function runSort() {
-    comparisonsDone = 0;
+  function runSort() {
+    shuffledSongs = shuffle(SONGS);
+    history = [];
     totalEstimate = Math.max(1, estimateComparisons(SONGS.length));
+    startRun();
+  }
+
+  async function startRun() {
+    callIndex = 0;
     showScreen("battle");
-    const shuffled = shuffle(SONGS);
-    const ranked = await mergeSort(shuffled);
+    updateProgress();
+    updateBackButton();
+    const ranked = await mergeSort(shuffledSongs);
     showResults(ranked);
   }
 
